@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap (rellena la URL real tras desplegar)
+Sitemap: https://EJEMPLO.pages.dev/sitemap.xml
