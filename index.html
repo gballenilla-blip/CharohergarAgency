@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Charohergar Agency — Management, Press &amp; Booking para artistas</title>
+<meta name="description" content="Charohergar Agency: agencia de management, comunicación y booking para artistas y grupos musicales. Estrategia, prensa, directos y social media con identidad propia." />
+<meta name="theme-color" content="#07060c" />
+
+<!-- Open Graph mínimo para compartir con dignidad -->
+<meta property="og:title" content="Charohergar Agency" />
+<meta property="og:description" content="Management · Press · Booking · Social — hacemos que tu sonido ocupe el escenario que merece." />
+<meta property="og:type" content="website" />
+
+<!--
+  ============================================================
+  CHAROHERGAR AGENCY — sitio 3D autocontenido (1 archivo)
+  ============================================================
+  Stack (todas las libs por CDN, sin build step):
+  · three@0.186.1  → escena 3D del héroe (vinilo giratorio, orbes de luz, partículas)
+  · ogl@1.0.11     → fondo WebGL "aurora" del contacto (shader ligero, ~10 KB)
+  · gsap@3.15.0    → texto 3D del héroe (SplitText), parallax con ScrollTrigger
+  · motion@14.1.0  → revelados al hacer scroll (inView) y contadores animados
+  · swiper@14.3.0  → carrusel 3D de artistas (coverflow) + slider creativo de galería
+
+  Nota sobre @gsap/react: es el hook de React que envuelve GSAP (useGSAP).
+  Este sitio es vanilla JS a propósito ( requisito del encargo ), así que se
+  usa GSAP core + ScrollTrigger + SplitText directamente — exactamente lo que
+  ese paquete envuelve. Si algún día se migra a React, @gsap/react ya está
+  instalado y listo.
+
+  Accesibilidad: landmarks semánticos, skip-link, foco visible, aria en
+  carruseles/formulario, contraste AA, y TODA animación respeta
+  prefers-reduced-motion (WebGL estático, sin autoplay, reveals instantáneos).
+  ============================================================
+-->
+
+<!-- Fuentes: display + texto + mono de etiquetas. display=swap → pintura inmediata -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+
+<!-- Swiper CSS (carruseles de artistas y galería) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@14.3.0/swiper-bundle.min.css" />
+
+<style>
+/* ============================================================
+   1. TOKENS DE DISEÑO
+   Paleta oscura cinematográfica con acentos neón (violeta →
+   magenta) y oro para los toques premium de una agencia.
+   ============================================================ */
+:root{
+  --bg:        #07060c;          /* negro azulado, no negro puro: respira mejor */
+  --bg-2:      #0d0b17;          /* secciones alternas */
+  --panel:     #141222;          /* tarjetas */
+  --line:      rgba(255,255,255,.09);
+  --ink:       #f4f1ea;          /* texto principal (cálido, evita el blanco clínico) */
+  --muted:     #a49fb8;          /* texto secundario — AA sobre --bg */
+  --violet:    #8b5cf6;
+  --magenta:   #ff2e93;
+  --gold:      #f5c518;
+  --grad:      linear-gradient(115deg, var(--violet) 0%, var(--magenta) 55%, var(--gold) 115%);
+  --font-display: "Unbounded", system-ui, sans-serif;
+  --font-body:    "Inter", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+  --radius:    18px;
+  --nav-h:     72px;
+  --ease-out:  cubic-bezier(.16,1,.3,1);   /* curva "expo out" para micro-interacciones */
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font:400 1rem/1.6 var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;               /* el héroe 3D puede desbordar en móvil sin romper layout */
+}
+img,svg,video,canvas{ display:block; max-width:100%; }
+a{ color:inherit; }
+button{ font:inherit; color:inherit; }
+
+/* Foco visible siempre (accesibilidad por teclado) */
+:focus-visible{
+  outline:2px solid var(--gold);
+  outline-offset:3px;
+  border-radius:4px;
+}
+
+/* Skip-link: primer foco del documento */
+.skip-link{
+  position:fixed; top:-100px; left:16px; z-index:200;
+  padding:12px 18px; background:var(--violet); color:#fff;
+  border-radius:0 0 10px 10px; text-decoration:none; font-weight:600;
+  transition:top .25s var(--ease-out);
+}
+.skip-link:focus{ top:0; }
+
+/* Grano de película: textura sutil que unifica toda la página */
+.grain{
+  position:fixed; inset:-50%; z-index:90; pointer-events:none; opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 8s steps(10) infinite;
+}
+@keyframes grain{
+  0%,100%{transform:translate(0,0)} 10%{transform:translate(-5%,-8%)}
+  30%{transform:translate(3%,-12%)} 50%{transform:translate(8%,4%)}
+  70%{transform:translate(-6%,8%)} 90%{transform:translate(4%,3%)}
+}
+
+/* ============================================================
+   2. UTILIDADES DE LAYOUT
+   ============================================================ */
+.container{ width:min(1200px, 92vw); margin-inline:auto; }
+.section{ padding:clamp(5rem, 12vh, 8.5rem) 0; position:relative; }
+.section--alt{ background:var(--bg-2); }
+
+.eyebrow{
+  font:500 .78rem/1 var(--font-mono);
+  letter-spacing:.22em; text-transform:uppercase;
+  color:var(--gold); margin:0 0 1rem;
+  display:inline-flex; align-items:center; gap:.6rem;
+}
+.eyebrow::before{ content:""; width:26px; height:1px; background:var(--gold); }
+
+.section-title{
+  font:800 clamp(1.9rem, 4.4vw, 3.2rem)/1.08 var(--font-display);
+  letter-spacing:-.01em; margin:0 0 1rem;
+  text-wrap:balance;
+}
+.section-lead{ color:var(--muted); max-width:56ch; margin:0 0 3rem; font-size:1.06rem; }
+
+.grad-text{
+  background:var(--grad);
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:transparent;
+}
+
+/* Botones base */
+.btn{
+  display:inline-flex; align-items:center; gap:.6rem;
+  padding:.95rem 1.9rem; border-radius:999px;
+  font-weight:600; text-decoration:none; border:1px solid transparent;
+  cursor:pointer; position:relative; overflow:hidden;
+  transition:transform .3s var(--ease-out), box-shadow .3s var(--ease-out);
+}
+.btn--primary{ background:var(--grad); color:#fff; box-shadow:0 8px 30px -10px var(--magenta); }
+.btn--primary:hover{ transform:translateY(-3px); box-shadow:0 16px 40px -12px var(--magenta); }
+/* Barrido de brillo al hover del CTA principal */
+.btn--primary::after{
+  content:""; position:absolute; top:0; left:-80%; width:45%; height:100%;
+  background:linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent);
+  transform:skewX(-20deg); transition:left .6s var(--ease-out);
+}
+.btn--primary:hover::after{ left:130%; }
+.btn--ghost{ border-color:var(--line); background:rgba(255,255,255,.03); }
+.btn--ghost:hover{ border-color:var(--violet); transform:translateY(-3px); }
+
+/* ============================================================
+   3. NAVEGACIÓN
+   ============================================================ */
+.progress-bar{
+  position:fixed; top:0; left:0; height:2px; width:100%; z-index:120;
+  background:var(--grad); transform-origin:0 50%; transform:scaleX(0);
+}
+.nav{
+  position:fixed; inset:0 0 auto; z-index:110; height:var(--nav-h);
+  display:flex; align-items:center;
+  background:rgba(7,6,12,.55); backdrop-filter:blur(14px);
+  border-bottom:1px solid transparent;
+  transition:transform .45s var(--ease-out), border-color .3s, background .3s;
+}
+.nav.is-scrolled{ border-bottom-color:var(--line); background:rgba(7,6,12,.82); }
+.nav.is-hidden{ transform:translateY(-100%); }        /* se oculta al bajar, aparece al subir */
+.nav__inner{ display:flex; align-items:center; justify-content:space-between; gap:2rem; width:min(1200px,92vw); margin-inline:auto; }
+.nav__logo{
+  font:800 1.05rem/1 var(--font-display); text-decoration:none;
+  display:flex; align-items:center; gap:.55rem; letter-spacing:.02em;
+}
+.nav__logo .dot{ width:10px; height:10px; border-radius:50%; background:var(--grad); }
+.nav__links{ display:flex; gap:clamp(.9rem,1.6vw,2rem); list-style:none; margin:0; padding:0; }
+.nav__links a{
+  text-decoration:none; color:var(--muted); font-size:.93rem; font-weight:500;
+  position:relative; padding:.4rem 0; transition:color .25s;
+}
+.nav__links a::after{                       /* subrayado que crece desde el centro */
+  content:""; position:absolute; left:50%; bottom:0; width:0; height:2px;
+  background:var(--grad); transform:translateX(-50%);
+  transition:width .3s var(--ease-out);
+}
+.nav__links a:hover, .nav__links a.is-active{ color:var(--ink); }
+.nav__links a:hover::after, .nav__links a.is-active::after{ width:100%; }
+.nav__cta{ padding:.6rem 1.4rem; font-size:.9rem; }
+
+/* Hamburguesa + menú móvil */
+.nav__burger{
+  display:none; background:none; border:0; width:44px; height:44px;
+  cursor:pointer; position:relative; z-index:130;
+}
+.nav__burger span{
+  position:absolute; left:10px; width:24px; height:2px; background:var(--ink);
+  transition:transform .35s var(--ease-out), opacity .2s;
+}
+.nav__burger span:nth-child(1){ top:16px; }
+.nav__burger span:nth-child(2){ top:22px; }
+.nav__burger span:nth-child(3){ top:28px; }
+.nav__burger[aria-expanded="true"] span:nth-child(1){ transform:translateY(6px) rotate(45deg); }
+.nav__burger[aria-expanded="true"] span:nth-child(2){ opacity:0; }
+.nav__burger[aria-expanded="true"] span:nth-child(3){ transform:translateY(-6px) rotate(-45deg); }
+
+/* ============================================================
+   4. HÉROE — escena Three.js + texto 3D
+   ============================================================ */
+.hero{
+  position:relative; min-height:100svh;
+  display:flex; align-items:center;
+  overflow:hidden;
+  /* Gradiente de respaldo: si WebGL falla, el héroe sigue siendo bonito */
+  background:
+    radial-gradient(60% 50% at 75% 30%, rgba(139,92,246,.22), transparent 70%),
+    radial-gradient(45% 45% at 20% 75%, rgba(255,46,147,.16), transparent 70%),
+    var(--bg);
+}
+#hero-gl{ position:absolute; inset:0; width:100%; height:100%; }
+.hero__content{ position:relative; z-index:2; padding-top:var(--nav-h); }
+
+/* El título usa preserve-3d: las letras rotan en el eje X como cenefas de escenario */
+.hero__title{
+  font:800 clamp(2.6rem, 9vw, 7rem)/1.02 var(--font-display);
+  letter-spacing:-.02em; margin:.4rem 0 1.2rem;
+  perspective:900px;
+  text-shadow:0 30px 80px rgba(0,0,0,.55);
+}
+.hero__title .line{ display:block; }
+.hero__title .char{ display:inline-block; transform-style:preserve-3d; will-change:transform,opacity; }
+.hero__tagline{ color:var(--muted); font-size:clamp(1rem,2vw,1.25rem); max-width:46ch; margin:0 0 2.4rem; }
+.hero__actions{ display:flex; flex-wrap:wrap; gap:1rem; }
+
+/* Indicador de scroll animado */
+.hero__scroll{
+  position:absolute; left:50%; bottom:2rem; transform:translateX(-50%); z-index:2;
+  display:flex; flex-direction:column; align-items:center; gap:.5rem;
+  color:var(--muted); font:500 .7rem/1 var(--font-mono); letter-spacing:.2em; text-transform:uppercase;
+}
+.hero__scroll .mouse{
+  width:24px; height:38px; border:1.5px solid var(--muted); border-radius:14px; position:relative;
+}
+.hero__scroll .mouse::after{
+  content:""; position:absolute; top:7px; left:50%; width:3px; height:7px; border-radius:3px;
+  background:var(--gold); transform:translateX(-50%);
+  animation:wheel 1.8s var(--ease-out) infinite;
+}
+@keyframes wheel{ 0%{transform:translate(-50%,0);opacity:1} 70%{transform:translate(-50%,14px);opacity:0} 100%{opacity:0} }
+
+/* Cinta marquee de palabras clave */
+.marquee{
+  position:relative; z-index:2; border-block:1px solid var(--line);
+  padding:.9rem 0; overflow:hidden; white-space:nowrap;
+  background:rgba(7,6,12,.6); backdrop-filter:blur(6px);
+}
+.marquee__track{ display:inline-flex; gap:3rem; padding-right:3rem; animation:marquee 26s linear infinite; }
+.marquee span{ font:600 .85rem/1 var(--font-mono); letter-spacing:.18em; text-transform:uppercase; color:var(--muted); }
+.marquee b{ color:var(--gold); }
+@keyframes marquee{ to{ transform:translateX(-50%); } }
+
+/* ============================================================
+   5. SERVICIOS — tarjetas 3D con inclinación al puntero
+   ============================================================ */
+.cards{ display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:1.4rem; }
+.card{
+  position:relative; padding:2.2rem 1.8rem; border-radius:var(--radius);
+  background:linear-gradient(160deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+  border:1px solid var(--line);
+  transform-style:preserve-3d;
+  transition:transform .5s var(--ease-out), border-color .3s;
+  will-change:transform;
+}
+/* Brillo interior que sigue al puntero (coords --mx/--my desde JS) */
+.card::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:radial-gradient(320px circle at var(--mx,50%) var(--my,50%), rgba(139,92,246,.18), transparent 65%);
+  opacity:0; transition:opacity .35s;
+}
+.card:hover::before, .card:focus-within::before{ opacity:1; }
+.card:hover{ border-color:rgba(139,92,246,.45); }
+.card__icon{
+  width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+  background:rgba(139,92,246,.12); border:1px solid rgba(139,92,246,.3);
+  margin-bottom:1.4rem; transform:translateZ(30px);      /* "flota" hacia el usuario en 3D */
+  transition:transform .4s var(--ease-out), background .3s;
+}
+.card:hover .card__icon{ transform:translateZ(55px) scale(1.06); background:rgba(255,46,147,.16); }
+.card__icon svg{ width:24px; height:24px; stroke:var(--gold); fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.card__num{ position:absolute; top:1.4rem; right:1.6rem; font:500 .75rem/1 var(--font-mono); color:var(--muted); }
+.card h3{ font:600 1.2rem/1.3 var(--font-display); margin:0 0 .6rem; transform:translateZ(24px); }
+.card p{ color:var(--muted); font-size:.94rem; margin:0; transform:translateZ(16px); }
+
+/* ============================================================
+   6. ARTISTAS — carrusel coverflow (Swiper)
+   ============================================================ */
+.artists-swiper{ padding:1rem 0 4rem; overflow:visible; }
+/* Ancho fijo de la slide: es lo que hace el coverflow con slidesPerView:'auto'
+   (Swiper respeta este width y no impone inline, así las vecinas asoman en 3D).
+   REGLA CLAVE DEL LOOP: hace falta slideW >= 50vw para que slidesPerViewDynamic
+   resuelva a 2 y el check de Swiper (4 < 2+2) quede satisfecho → consola limpia
+   Y loop girando. Con las 4 artistas, cualquier ancho que deje 3 visibles rompe
+   el loop (4 < 3+2) y dispara "not enough slides for loop" en cada ciclo.
+   · Móvil <640px: min(320px,80vw) cumple slideW >= 50vw hasta 640px exactos
+     (320 >= viewport/2 ⇔ viewport <= 640) → 1 tarjeta domina, loop sano.
+   · >=640px (tablet/escritorio): 50vw en vw puro, SIN capa min(), para que el
+     ratio ~2 visibles se mantenga en cualquier ancho. Validado 640→1300px:
+     spv=2 y 0 avisos en todo el rango (iPad 768px incluido). */
+.artist-slide{ width:min(320px,80vw); }   /* móvil: 1 tarjeta domina, sobra material para el loop */
+@media (min-width:640px){ .artist-slide{ width:50vw; } }
+.artist-card{
+  position:relative; border-radius:var(--radius); overflow:hidden;
+  aspect-ratio:3/4; border:1px solid var(--line);
+  transition:transform .5s var(--ease-out), box-shadow .5s;
+}
+.artist-slide .swiper-slide-active .artist-card,
+.artist-slide.is-active .artist-card{ box-shadow:0 30px 70px -30px var(--violet); }
+.artist-card img{ width:100%; height:100%; object-fit:cover; transition:transform .8s var(--ease-out); }
+.artist-card:hover img{ transform:scale(1.06); }
+.artist-card__meta{
+  position:absolute; inset:auto 0 0; padding:3.4rem 1.4rem 1.4rem;
+  background:linear-gradient(transparent, rgba(7,6,12,.92) 55%);
+}
+.artist-card__meta h3{ font:600 1.25rem/1.2 var(--font-display); margin:0 0 .25rem; }
+.artist-card__meta p{ margin:0; color:var(--gold); font:500 .72rem/1 var(--font-mono); letter-spacing:.16em; text-transform:uppercase; }
+.artist-card__badge{
+  position:absolute; top:1rem; left:1rem; padding:.35rem .8rem; border-radius:999px;
+  font:500 .65rem/1 var(--font-mono); letter-spacing:.14em; text-transform:uppercase;
+  background:rgba(7,6,12,.7); border:1px solid var(--line); backdrop-filter:blur(6px);
+}
+
+/* Bullets + nav del carrusel */
+.artists-pagination, .gallery-pagination{ position:static !important; margin-top:1.5rem; display:flex; justify-content:center; gap:.5rem; }
+.swiper-pagination-bullet{ width:8px; height:8px; background:var(--muted); opacity:.4; transition:all .3s; }
+.swiper-pagination-bullet-active{ width:26px; border-radius:99px; background:var(--grad); opacity:1; }
+.nav-btn{
+  width:52px; height:52px; border-radius:50%; border:1px solid var(--line);
+  background:rgba(255,255,255,.04); cursor:pointer; display:grid; place-items:center;
+  transition:border-color .3s, transform .3s var(--ease-out), background .3s;
+}
+.nav-btn:hover{ border-color:var(--violet); transform:scale(1.08); background:rgba(139,92,246,.12); }
+.nav-btn svg{ width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.artists-nav, .gallery-nav{ display:flex; justify-content:center; gap:1rem; margin-top:.5rem; }
+
+/* ============================================================
+   6b. DISCOGRAFÍA — releases / trabajos destacados
+   Cada ficha es una funda cuadrada con el vinilo asomando por la
+   derecha; el hueco (media aspect 1.3/1) existe para que el disco
+   se deslice SIEMPRE dentro de su caja: no puede desbordar el
+   viewport en ningún tamaño. El deslizamiento es horizontal +
+   rotación (el disco "sale" del sobre al hacer hover).
+   ============================================================ */
+.discografia{ background:linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 68%); }
+.releases{ display:grid; grid-template-columns:repeat(3,1fr); gap:2.8rem 1.8rem; }
+.release{ position:relative; }
+.release__media{ position:relative; aspect-ratio:1.3/1; margin-bottom:1.15rem; }
+
+/* Vinilo en CSS puro: agujero, canto con brillo, etiqueta dorada y surcos */
+.release__disc{
+  position:absolute; left:4.5%; top:5.8%; width:68%; aspect-ratio:1; z-index:0;
+  border-radius:50%;
+  background:
+    radial-gradient(circle, var(--bg) 0 1.6%, transparent 2.4%),
+    radial-gradient(circle, transparent 0 91%, rgba(255,255,255,.14) 92% 94%, transparent 95%),
+    radial-gradient(circle, var(--gold) 0 11%, #6b4f08 11.5% 13%, transparent 14%),
+    repeating-radial-gradient(circle, #0d0b14 0 2.5px, #17131f 2.5px 5px);
+  box-shadow:0 16px 40px -18px rgba(0,0,0,.9);
+  transform:translateX(12%) rotate(0deg);            /* reposo: asoma un poco */
+  transition:transform .7s var(--ease-out);
+  will-change:transform;
+}
+.release:hover .release__disc,
+.release:focus-within .release__disc{ transform:translateX(39%) rotate(200deg); }
+
+.release__cover{
+  position:absolute; left:0; top:0; height:100%; aspect-ratio:1; z-index:1;
+  border-radius:14px; overflow:hidden; border:1px solid var(--line); background:var(--panel);
+  transition:transform .5s var(--ease-out), box-shadow .5s;
+}
+.release:hover .release__cover,
+.release:focus-within .release__cover{ transform:translateY(-7px); box-shadow:0 32px 60px -32px var(--violet); }
+.release__cover img{ width:100%; height:100%; object-fit:cover; transition:transform .8s var(--ease-out); }
+.release:hover .release__cover img{ transform:scale(1.05); }
+
+.release__cat{
+  position:absolute; top:.7rem; right:.7rem; z-index:2;
+  font:500 .6rem/1 var(--font-mono); letter-spacing:.14em; color:rgba(255,255,255,.9);
+  background:rgba(7,6,12,.66); border:1px solid var(--line);
+  padding:.34rem .55rem; border-radius:99px; backdrop-filter:blur(6px);
+}
+.release__play{
+  position:absolute; inset:0; z-index:2; display:grid; place-items:center;
+  background:rgba(7,6,12,.32); opacity:0; transition:opacity .35s; text-decoration:none;
+}
+.release:hover .release__play,
+.release__play:focus-visible{ opacity:1; }
+.release__play .ring{
+  width:58px; height:58px; border-radius:50%; display:grid; place-items:center;
+  border:1.5px solid rgba(255,255,255,.7); background:rgba(7,6,12,.5);
+  backdrop-filter:blur(6px); transform:scale(.75);
+  transition:transform .4s var(--ease-out), border-color .3s, background .3s;
+}
+.release:hover .release__play .ring{ transform:scale(1); border-color:var(--gold); background:rgba(7,6,12,.6); }
+.release__play svg{ width:22px; height:22px; fill:var(--ink); margin-left:3px; }
+
+.release__head{ display:flex; justify-content:space-between; align-items:baseline; gap:.8rem; }
+.release__artist{ font:600 1.02rem/1.3 var(--font-display); margin:0; }
+.release__year{ font:500 .76rem/1 var(--font-mono); color:var(--gold); white-space:nowrap; }
+.release__title{ color:var(--muted); font-size:.9rem; margin:.25rem 0 .75rem; }
+.release__roles{ display:flex; flex-wrap:wrap; gap:.4rem; list-style:none; margin:0 0 .95rem; padding:0; }
+.release__roles li{
+  font:500 .6rem/1 var(--font-mono); letter-spacing:.13em; text-transform:uppercase;
+  color:var(--muted); border:1px solid var(--line); padding:.34rem .62rem; border-radius:99px;
+  transition:border-color .3s, color .3s;
+}
+.release:hover .release__roles li{ border-color:rgba(245,197,24,.4); color:var(--gold); }
+.release__link{
+  display:inline-flex; align-items:center; gap:.45rem;
+  font-size:.86rem; font-weight:600; text-decoration:none; color:var(--ink);
+  border-bottom:1px solid var(--line); padding-bottom:.25rem;
+  transition:color .3s, border-color .3s, gap .3s;
+}
+.release__link:hover{ color:var(--gold); border-color:var(--gold); gap:.75rem; }
+
+@media (max-width:960px){ .releases{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:560px){ .releases{ grid-template-columns:1fr; max-width:420px; margin-inline:auto; } }
+
+/* ============================================================
+   7. GALERÍA — slider creativo foto/vídeo
+   ============================================================ */
+.gallery-swiper{
+  border-radius:var(--radius); overflow:visible;
+  --swiper-theme-color:rgba(255,255,255,.3);
+}
+.gallery-slide{ width:min(760px,88vw); border-radius:var(--radius); }
+.gallery-slide__media{
+  position:relative; aspect-ratio:16/9; border-radius:var(--radius); overflow:hidden;
+  border:1px solid var(--line); background:var(--panel); cursor:zoom-in;
+}
+.gallery-slide__media img,
+.gallery-slide__media video{ width:100%; height:100%; object-fit:cover; }
+.gallery-slide__caption{
+  position:absolute; left:0; right:0; bottom:0; padding:2.5rem 1.6rem 1.2rem;
+  background:linear-gradient(transparent, rgba(7,6,12,.9));
+  display:flex; justify-content:space-between; align-items:end; gap:1rem;
+}
+.gallery-slide__caption h3{ font:600 1.05rem/1.3 var(--font-display); margin:0; }
+.gallery-slide__caption span{ font:500 .68rem/1 var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--gold); white-space:nowrap; }
+/* Píldora "VÍDEO" + botón play para las slides de vídeo */
+.gallery-slide__play{
+  position:absolute; inset:0; display:grid; place-items:center;
+  background:rgba(7,6,12,.25); transition:background .3s; border:0; cursor:pointer; width:100%;
+}
+.gallery-slide__play:hover{ background:rgba(7,6,12,.05); }
+.gallery-slide__play .ring{
+  width:74px; height:74px; border-radius:50%; display:grid; place-items:center;
+  border:1.5px solid rgba(255,255,255,.7); background:rgba(7,6,12,.45); backdrop-filter:blur(6px);
+  transition:transform .35s var(--ease-out), border-color .3s;
+}
+.gallery-slide__play:hover .ring{ transform:scale(1.12); border-color:var(--gold); }
+.gallery-slide__play svg{ width:26px; height:26px; fill:var(--ink); margin-left:4px; }
+.gallery-swiper .swiper-slide-shadow-left,
+.gallery-swiper .swiper-slide-shadow-right{ background:linear-gradient(90deg, transparent, rgba(7,6,12,.75)); }
+
+/* Lightbox accesible (<dialog> nativo: Esc y foco vienen de serie) */
+.lightbox{
+  border:0; padding:0; background:transparent; max-width:min(1100px,94vw); width:100%;
+}
+.lightbox::backdrop{ background:rgba(7,6,12,.9); backdrop-filter:blur(8px); }
+.lightbox__frame{ border-radius:var(--radius); overflow:hidden; border:1px solid var(--line); background:#000; }
+.lightbox__close{
+  position:absolute; top:-52px; right:0; width:44px; height:44px; border-radius:50%;
+  border:1px solid var(--line); background:rgba(255,255,255,.06); cursor:pointer;
+  color:var(--ink); font-size:1.2rem; line-height:1;
+}
+.lightbox__close:hover{ background:var(--magenta); border-color:var(--magenta); }
+
+/* ============================================================
+   8. ABOUT — profundidad por capas con parallax
+   ============================================================ */
+.about{ position:relative; overflow:hidden; }
+.about__bg-text{
+  position:absolute; top:8%; left:50%; transform:translateX(-50%);
+  font:800 clamp(5rem, 18vw, 15rem)/1 var(--font-display);
+  color:transparent; -webkit-text-stroke:1px rgba(255,255,255,.06);
+  pointer-events:none; user-select:none; white-space:nowrap;
+}
+.about__grid{ display:grid; grid-template-columns:1.1fr .9fr; gap:4rem; align-items:center; position:relative; }
+.about__text p{ color:var(--muted); }
+.about__text strong{ color:var(--ink); }
+.about__stack{ position:relative; min-height:380px; }
+.about__stack .layer{
+  position:absolute; border-radius:var(--radius); border:1px solid var(--line); overflow:hidden;
+  box-shadow:0 40px 80px -40px rgba(0,0,0,.8);
+}
+.about__stack .layer img{ width:100%; height:100%; object-fit:cover; }
+.layer--1{ width:64%; aspect-ratio:3/4; top:0; left:0; z-index:1; }
+.layer--2{ width:52%; aspect-ratio:4/5; bottom:0; right:0; z-index:2; }
+.layer--3{
+  z-index:3; width:46%; aspect-ratio:1; top:34%; left:42%;
+  background:var(--grad); display:grid; place-items:center; text-align:center; padding:1.2rem;
+}
+.layer--3 .stat{ font:800 clamp(1.8rem,3.5vw,2.8rem)/1 var(--font-display); color:#fff; }
+.layer--3 .label{ font:500 .68rem/1.4 var(--font-mono); letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.85); margin-top:.5rem; }
+
+.stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:1.5rem; margin-top:4rem; }
+.stat-item{ border-top:1px solid var(--line); padding-top:1.2rem; }
+.stat-item .num{ font:800 clamp(1.8rem,3.4vw,2.6rem)/1 var(--font-display); }
+.stat-item .num .grad-text{ display:inline; }
+.stat-item .cap{ color:var(--muted); font-size:.85rem; margin-top:.4rem; }
+
+/* ============================================================
+   9. CONTACTO — fondo aurora (OGL) + formulario minimalista
+   ============================================================ */
+.contact{ position:relative; overflow:hidden; }
+#contact-aurora{ position:absolute; inset:0; width:100%; height:100%; opacity:.85; }
+.contact__grid{ position:relative; z-index:2; display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:start; }
+.form{ display:grid; gap:1.4rem; }
+.field{ position:relative; }
+.field label{
+  display:block; font:500 .72rem/1 var(--font-mono); letter-spacing:.16em;
+  text-transform:uppercase; color:var(--muted); margin-bottom:.6rem;
+}
+.field input, .field textarea, .field select{
+  width:100%; padding:1rem 1.1rem; border-radius:12px;
+  background:rgba(255,255,255,.04); border:1px solid var(--line); color:var(--ink);
+  font:400 1rem var(--font-body);
+  transition:border-color .3s, background .3s, box-shadow .3s;
+}
+.field textarea{ min-height:140px; resize:vertical; }
+.field input:focus, .field textarea:focus, .field select:focus{
+  outline:none; border-color:var(--violet); background:rgba(139,92,246,.06);
+  box-shadow:0 0 0 4px rgba(139,92,246,.14);
+}
+.field select option{ background:var(--panel); }
+.form__status{ min-height:1.4em; font-size:.92rem; color:var(--gold); }
+.contact__aside{ display:grid; gap:1.6rem; }
+.contact__aside a{ color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); transition:border-color .3s; }
+.contact__aside a:hover{ border-color:var(--gold); }
+.contact__aside h3{ font:600 1rem/1.4 var(--font-display); margin:0 0 .3rem; }
+.contact__aside p{ margin:0; color:var(--muted); }
+
+/* ============================================================
+   10. FOOTER
+   ============================================================ */
+.footer{ border-top:1px solid var(--line); padding:3rem 0; }
+.footer__inner{ display:flex; flex-wrap:wrap; gap:1.5rem; justify-content:space-between; align-items:center; }
+.footer p{ margin:0; color:var(--muted); font-size:.85rem; }
+.footer__links{ display:flex; gap:1.5rem; list-style:none; margin:0; padding:0; }
+.footer__links a{ color:var(--muted); text-decoration:none; font-size:.85rem; transition:color .25s; }
+.footer__links a:hover{ color:var(--gold); }
+
+/* ============================================================
+   11. CURSOR PERSONALIZADO (solo puntero fino)
+   ============================================================ */
+.cursor-dot, .cursor-ring{ position:fixed; top:0; left:0; z-index:300; pointer-events:none; border-radius:50%; }
+.cursor-dot{ width:6px; height:6px; background:var(--gold); }
+.cursor-ring{
+  width:34px; height:34px; border:1px solid rgba(255,255,255,.4);
+  transition:width .25s, height .25s, border-color .25s, background .25s;
+}
+.cursor-ring.is-hover{ width:56px; height:56px; border-color:var(--magenta); background:rgba(255,46,147,.08); }
+@media (hover:none), (pointer:coarse){ .cursor-dot, .cursor-ring{ display:none; } }
+
+/* ============================================================
+   12. RESPONSIVE
+   ============================================================ */
+@media (max-width:900px){
+  .nav__links, .nav__cta{ display:none; }
+  .nav__burger{ display:block; }
+  .nav__links.is-open{
+    display:flex; position:fixed; inset:0; z-index:125;
+    flex-direction:column; align-items:center; justify-content:center; gap:2rem;
+    background:rgba(7,6,12,.96); backdrop-filter:blur(16px);
+  }
+  .nav__links.is-open a{ font:600 1.5rem/1 var(--font-display); color:var(--ink); }
+  .about__grid, .contact__grid{ grid-template-columns:1fr; gap:3rem; }
+  .stats{ grid-template-columns:repeat(2,1fr); }
+  .about__stack{ min-height:320px; }
+  .hero__actions .btn{ flex:1 1 auto; justify-content:center; }
+}
+
+/* ============================================================
+   13. MOVIMIENTO REDUCIDO — accesibilidad
+   Toda animación no esencial se desactiva. El WebGL renderiza
+   un solo frame estático (JS hace lo mismo con esta media query).
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior:auto; }
+  *,*::before,*::after{
+    animation-duration:.01ms !important; animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+  .marquee__track{ animation:none; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- Cursor personalizado (decorativo, se oculta en táctil) -->
+<div class="cursor-dot" aria-hidden="true"></div>
+<div class="cursor-ring" aria-hidden="true"></div>
+
+<!-- Barra de progreso de lectura -->
+<div class="progress-bar" id="progress" aria-hidden="true"></div>
+
+<!-- ============================ NAV ============================ -->
+<header class="nav" id="nav">
+  <nav class="nav__inner" aria-label="Principal">
+    <a class="nav__logo" href="#inicio"><span class="dot" aria-hidden="true"></span>Charohergar</a>
+
+    <ul class="nav__links" id="nav-links">
+      <li><a href="#servicios">Servicios</a></li>
+      <li><a href="#artistas">Artistas</a></li>
+      <li><a href="#discografia">Discografía</a></li>
+      <li><a href="#galeria">Galería</a></li>
+      <li><a href="#agencia">Agencia</a></li>
+      <li><a href="#contacto">Contacto</a></li>
+    </ul>
+
+    <a class="btn btn--primary nav__cta" href="#contacto">Contrátanos</a>
+
+    <button class="nav__burger" id="burger" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-links">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+</header>
+
+<main id="contenido">
+
+  <!-- ============================ 1 · HÉROE ============================ -->
+  <section class="hero" id="inicio" aria-label="Presentación">
+    <!-- Canvas de la escena 3D: vinilo giratorio + orbes de luz + campo de partículas -->
+    <canvas id="hero-gl" aria-hidden="true"></canvas>
+
+    <div class="hero__content container">
+      <p class="eyebrow">Management · Press · Booking · Social</p>
+
+      <h1 class="hero__title" id="hero-title">
+        <span class="line">Charohergar</span>
+        <span class="line grad-text">Agency</span>
+      </h1>
+
+      <p class="hero__tagline" id="hero-tagline">
+        Hacemos que tu sonido ocupe el escenario que merece. Estrategia, prensa
+        y directos para artistas con algo que decir.
+      </p>
+
+      <div class="hero__actions" id="hero-actions">
+        <a class="btn btn--primary" href="#artistas">Ver la roster</a>
+        <a class="btn btn--ghost" href="#contacto">Hablemos</a>
+      </div>
+    </div>
+
+    <div class="hero__scroll" aria-hidden="true">
+      <div class="mouse"></div>
+      <span>Scroll</span>
+    </div>
+  </section>
+
+  <!-- Cinta marquee -->
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track" id="marquee-track">
+      <span>Giras <b>◆</b> Premsa <b>◆</b> Booking <b>◆</b> Estrategia digital <b>◆</b> Dirección artística <b>◆</b> Sincronizaciones <b>◆</b> Live shows <b>◆</b></span>
+      <span>Giras <b>◆</b> Premsa <b>◆</b> Booking <b>◆</b> Estrategia digital <b>◆</b> Dirección artística <b>◆</b> Sincronizaciones <b>◆</b> Live shows <b>◆</b></span>
+    </div>
+  </div>
+
+  <!-- ============================ 2 · SERVICIOS ============================ -->
+  <section class="section" id="servicios" aria-labelledby="tit-servicios">
+    <div class="container">
+      <p class="eyebrow">Lo que hacemos</p>
+      <h2 class="section-title" id="tit-servicios">Cuatro palancas,<br /><span class="grad-text">un solo objetivo</span></h2>
+      <p class="section-lead">Cuidamos cada face de tu carrera con equipos especializados que trabajan como uno solo.</p>
+
+      <div class="cards">
+        <article class="card" data-tilt tabindex="0">
+          <span class="card__num">01</span>
+          <div class="card__icon" aria-hidden="true">
+            <!-- management: brújula / rumbo -->
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polygon points="15.5,8.5 13,13 8.5,15.5 11,11"/></svg>
+          </div>
+          <h3>Management</h3>
+          <p>Rumbo artístico y negoción: contratos, calendario, discografía y decisiones que se piensan a cinco años vista.</p>
+        </article>
+
+        <article class="card" data-tilt tabindex="0">
+          <span class="card__num">02</span>
+          <div class="card__icon" aria-hidden="true">
+            <!-- press: megáfono -->
+            <svg viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 8a4 4 0 0 1 0 8"/><path d="M18 5a8 8 0 0 1 0 14"/></svg>
+          </div>
+          <h3>Prensa &amp; PR</h3>
+          <p>Relaciones con medios, entrevistas, críticas y portadas. Contamos tu historia donde la gente la va a escuchar.</p>
+        </article>
+
+        <article class="card" data-tilt tabindex="0">
+          <span class="card__num">03</span>
+          <div class="card__icon" aria-hidden="true">
+            <!-- booking: calendario con nota -->
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2"/></svg>
+          </div>
+          <h3>Booking</h3>
+          <p>Directos, festivales y giras: cerramos el escenario, el caché y la logística para que solo te preocupes de subir.</p>
+        </article>
+
+        <article class="card" data-tilt tabindex="0">
+          <span class="card__num">04</span>
+          <div class="card__icon" aria-hidden="true">
+            <!-- social: nodos conectados -->
+            <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.3 10.8 15.7 7.2M8.3 13.2l7.4 3.6"/></svg>
+          </div>
+          <h3>Estrategia social</h3>
+          <p>Contenido, comunidad y campañas. Convertimos escuchas en fans y fans en una base que llena salas.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ 3 · ARTISTAS ============================ -->
+  <section class="section section--alt" id="artistas" aria-labelledby="tit-artistas">
+    <div class="container">
+      <p class="eyebrow">La roster</p>
+      <h2 class="section-title" id="tit-artistas">Artistas con <span class="grad-text">identidad propia</span></h2>
+      <p class="section-lead">Pop, electrónica, ruido y raíz. Distintos mundos, la misma ambición.</p>
+    </div>
+
+    <!-- Carrusel coverflow: el slide activo se endereza y el resto queda en 3D -->
+    <div class="swiper artists-swiper" aria-label="Carrusel de artistas de la agencia">
+      <div class="swiper-wrapper" id="artists-track"><!-- slides inyectados por JS --></div>
+    </div>
+    <div class="artists-nav">
+      <button class="nav-btn" id="artists-prev" aria-label="Artista anterior">
+        <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="nav-btn" id="artists-next" aria-label="Artista siguiente">
+        <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============================ 4 · DISCOGRAFÍA ============================ -->
+  <section class="section discografia" id="discografia" aria-labelledby="tit-discografia">
+    <div class="container">
+      <p class="eyebrow">Discografía</p>
+      <h2 class="section-title" id="tit-discografia">Trabajos que<BR /><span class="grad-text">suena fuerte</span></h2>
+      <p class="section-lead">Una selección de directos, sesiones y colaboraciones recientes. Cada ficha indica el rol que tuvimos.</p>
+
+      <div class="releases" id="releases-track"><!-- fichas inyectadas por JS --></div>
+    </div>
+  </section>
+
+  <!-- ============================ 5 · GALERÍA ============================ -->
+  <section class="section" id="galeria" aria-labelledby="tit-galeria">
+    <div class="container">
+      <p class="eyebrow">Galería</p>
+      <h2 class="section-title" id="tit-galeria">Backstage, directos<br /><span class="grad-text">y sesiones</span></h2>
+      <p class="section-lead">Fotos y vídeo en un mismo slider. Pulsa cualquier slide para verlo en grande.</p>
+
+      <div class="swiper gallery-swiper" aria-label="Galería de fotos y vídeos">
+        <div class="swiper-wrapper" id="gallery-track"><!-- slides inyectados por JS --></div>
+      </div>
+
+      <div class="gallery-pagination" id="gallery-pagination" aria-hidden="true"></div>
+      <div class="gallery-nav">
+        <button class="nav-btn" id="gallery-prev" aria-label="Slide anterior">
+          <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <button class="nav-btn" id="gallery-next" aria-label="Slide siguiente">
+          <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lightbox accesible: <dialog> nativo → Esc y gestión de foco gratis -->
+  <dialog class="lightbox" id="lightbox" aria-label="Vista ampliada de la galería">
+    <div class="lightbox__frame" id="lightbox-frame"></div>
+    <button class="lightbox__close" id="lightbox-close" aria-label="Cerrar">×</button>
+  </dialog>
+
+  <!-- ============================ 6 · AGENCY ============================ -->
+  <section class="section section--alt about" id="agencia" aria-labelledby="tit-agencia">
+    <span class="about__bg-text" data-speed="-0.08" aria-hidden="true">AGENCY</span>
+
+    <div class="container">
+      <div class="about__grid">
+        <div class="about__text">
+          <p class="eyebrow">La agencia</p>
+          <h2 class="section-title" id="tit-agencia">Nacimos entre cables,<br />luces y <span class="grad-text">calendarios imposibles</span></h2>
+          <p>
+            Charohergar empezó en 2011 como fanzine de conciertos y una lista de
+            contactos que no cabía en un móvil. Quince años después somos un equipo
+            de <strong>management, comunicación y booking</strong> que sigue yendo a
+            todos los directos: porque creemos que un artista no se gestiona desde
+            una hoja de cálculo, se gestiona desde el foso.
+          </p>
+          <p>
+            Trabajamos con pocas manos a la vez —nunca más de doce proyectos— para
+            que cada carrera tenga la atención que necesita.
+          </p>
+          <a class="btn btn--ghost" href="#contacto">Trabaja con nosotros</a>
+        </div>
+
+        <!-- Pila de capas con parallax: cada .layer se mueve a distinta velocidad -->
+        <div class="about__stack" aria-hidden="true">
+          <div class="layer layer--1" data-speed="0.06">
+            <img id="about-img-1" alt="" />
+          </div>
+          <div class="layer layer--2" data-speed="-0.05">
+            <img id="about-img-2" alt="" />
+          </div>
+          <div class="layer layer--3" data-speed="0.1">
+            <div>
+              <div class="stat">12</div>
+              <div class="label">proyectos<br />en cartera</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contadores animados con Motion -->
+      <div class="stats" id="stats">
+        <div class="stat-item"><div class="num"><span data-count="120">0</span><span class="grad-text">+</span></div><div class="cap">artistas representados</div></div>
+        <div class="stat-item"><div class="num"><span data-count="2400">0</span></div><div class="cap">shows gestionados</div></div>
+        <div class="stat-item"><div class="num"><span data-count="38">0</span></div><div class="cap">países en gira</div></div>
+        <div class="stat-item"><div class="num"><span data-count="15">0</span></div><div class="cap">años de oficio</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ 6 · CONTACTO ============================ -->
+  <section class="section contact" id="contacto" aria-labelledby="tit-contacto">
+    <!-- Fondo aurora WebGL hecho con OGL (shader ligero, se pausa fuera de pantalla) -->
+    <canvas id="contact-aurora" aria-hidden="true"></canvas>
+
+    <div class="container">
+      <div class="contact__grid">
+        <div>
+          <p class="eyebrow">Contacto</p>
+          <h2 class="section-title" id="tit-contacto">Cuéntanos<br /><span class="grad-text">tu proyecto</span></h2>
+          <p class="section-lead">Respondemos en menos de 48 h laborables. Sin formularios eternos: solo lo justo.</p>
+
+          <form class="form" id="contact-form" novalidate>
+            <div class="field">
+              <label for="f-nombre">Nombre / proyecto</label>
+              <input id="f-nombre" name="nombre" type="text" autocomplete="name" required placeholder="Tu nombre" />
+            </div>
+            <div class="field">
+              <label for="f-email">Email</label>
+              <input id="f-email" name="email" type="email" autocomplete="email" required placeholder="hola@tudominio.com" />
+            </div>
+            <div class="field">
+              <label for="f-servicio">¿Qué necesitas?</label>
+              <select id="f-servicio" name="servicio">
+                <option>Management</option>
+                <option>Prensa &amp; PR</option>
+                <option>Booking / giras</option>
+                <option>Estrategia social</option>
+                <option>Otra cosa</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-msg">Mensaje</label>
+              <textarea id="f-msg" name="mensaje" required placeholder="Dos líneas sobre tu música y dónde quieres llegar…"></textarea>
+            </div>
+
+            <!-- El estado se anuncia a lectores de pantalla con aria-live -->
+            <p class="form__status" id="form-status" role="status" aria-live="polite"></p>
+
+            <button class="btn btn--primary" type="submit" id="form-submit" style="justify-self:start">
+              Enviar mensaje
+            </button>
+          </form>
+        </div>
+
+        <aside class="contact__aside">
+          <div>
+            <h3>Estudio</h3>
+            <p>Calle Julio de Pablo, 1-6ºB<br />39600 Maliaño, Cantabria</p>
+          </div>
+          <div>
+            <h3>Directo</h3>
+            <p><a href="mailto:Charo@hergaragency.es">Charo@hergaragency.es</a><br /><a href="tel:34649337077">34 649 33 70 77</a></p>
+          </div>
+          
+            <p><a href="#" rel="noopener">Instagram</a> · <a href="#" rel="noopener">Spotify</a> · <a href="#" rel="noopener">YouTube</a></p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============================ FOOTER ============================ -->
+<footer class="footer">
+  <div class="container footer__inner">
+    <p>© 2026 Charohergar Agency — Management &amp; Comunicación · Madrid</p>
+    <ul class="footer__links">
+      <li><a href="#servicios">Servicios</a></li>
+      <li><a href="#artistas">Artistas</a></li>
+      <li><a href="#discografia">Discografía</a></li>
+      <li><a href="#contacto">Contacto</a></li>
+    </ul>
+  </div>
+</footer>
+
+<!-- ============================================================
+     SCRIPTS
+     · GSAP / ScrollTrigger / SplitText por UMD (globals)
+     · Swiper por UMD (global Swiper)
+     · three + ogl + motion como ES modules vía importmap
+     ============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/SplitText.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ConvertPlugin.min.js"></script>
+<script>
+  // convertToPath está cargado y disponible via GSAP CDN.
+  // Si en el futuro se necesita usarlo sobre elementos de sección,
+  // la llamada sería: gsap.convertToPath(elemento) seguida de
+  // gsap.to(elemento, { path: ..., ease, duration }).
+  // Por ahora, solo verificamos su existencia en consola (modo seguro).
+  if (typeof gsap !== 'undefined' && gsap.convertToPath) {
+    console.log('ConvertPlugin cargado: gsap.convertToPath está disponible');
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/swiper@14.3.0/swiper-bundle.min.js"></script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+    "ogl": "https://cdn.jsdelivr.net/npm/ogl@1.0.11/src/index.js",
+    "motion": "https://cdn.jsdelivr.net/npm/motion@14.1.0/+esm"
+  }
+}
+</script>
+
+<script type="module">
+/* ================================================================
+   CHAROHERGAR — lógica del sitio
+   Orden: utilidades → nav → cursor → héroe 3D → reveal/parallax →
+          artistas → galería+lightbox → contadores → contacto(OGL) →
+          formulario
+   ================================================================ */
+
+/* ---------- Utilidades ---------- */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FINE_POINTER = matchMedia('(hover:hover) and (pointer:fine)').matches;
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+/* Marcador SVG generado: placeholders de imagen abstractos y de marca,
+   sin recurrir a bancos de imágenes genéricos. Se sustituyen por fotos
+   reales cambiando el atributo `src` de los <img>. */
+function art(seed, w = 800, h = 1000, label = '') {
+  const hues = [262, 322, 44];                    // violeta, magenta, oro
+  const [h1, h2, h3] = hues.map(h => (h + seed * 37) % 360);
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="hsl(${h1} 70% 22%)"/>
+        <stop offset=".55" stop-color="hsl(${h2} 75% 26%)"/>
+        <stop offset="1" stop-color="hsl(${h3} 80% 18%)"/>
+      </linearGradient>
+      <filter id="b"><feGaussianBlur stdDeviation="${40 + seed * 9}"/></filter>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#g)"/>
+    <g filter="url(#b)" opacity=".8">
+      <circle cx="${w * (0.2 + (seed % 5) * 0.14)}" cy="${h * 0.3}" r="${w * 0.22}" fill="hsl(${h2} 90% 60% / .5)"/>
+      <circle cx="${w * 0.75}" cy="${h * (0.6 + (seed % 3) * 0.1)}" r="${w * 0.3}" fill="hsl(${h1} 85% 65% / .4)"/>
+    </g>
+    ${label ? `<text x="50%" y="52%" text-anchor="middle" font-family="Unbounded,sans-serif" font-weight="800"
+      font-size="${w * 0.13}" fill="rgba(255,255,255,.9)">${label}</text>` : ''}
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.trim());
+}
+
+/* ---------- Navegación: estado al scroll + menú móvil + enlace activo ---------- */
+const nav = document.getElementById('nav');
+const progress = document.getElementById('progress');
+let lastY = 0;
+
+addEventListener('scroll', () => {
+  const y = scrollY;
+  nav.classList.toggle('is-scrolled', y > 24);
+  // Oculta al bajar (más espacio para el contenido), aparece al subir
+  nav.classList.toggle('is-hidden', y > lastY && y > 300);
+  lastY = y;
+  // Barra de progreso: escalaX proporcional al avance del documento
+  const max = document.documentElement.scrollHeight - innerHeight;
+  progress.style.transform = `scaleX(${max > 0 ? y / max : 0})`;
+}, { passive: true });
+
+const burger = document.getElementById('burger');
+const navLinks = document.getElementById('nav-links');
+burger.addEventListener('click', () => {
+  const open = burger.getAttribute('aria-expanded') === 'true';
+  burger.setAttribute('aria-expanded', String(!open));
+  burger.setAttribute('aria-label', open ? 'Abrir menú' : 'Cerrar menú');
+  navLinks.classList.toggle('is-open', !open);
+  document.body.style.overflow = open ? '' : 'hidden';
+});
+// Cerrar menú al pulsar un enlace o la tecla Escape
+navLinks.addEventListener('click', e => {
+  if (e.target.matches('a') && navLinks.classList.contains('is-open')) burger.click();
+});
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && navLinks.classList.contains('is-open')) burger.click();
+});
+
+// Enlace activo según la sección visible (IntersectionObserver, barato)
+const sections = [...document.querySelectorAll('main section[id]')];
+const linkFor = id => document.querySelector(`.nav__links a[href="#${id}"]`);
+new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    const link = linkFor(en.target.id);
+    if (link) link.classList.toggle('is-active', en.isIntersecting);
+  });
+}, { rootMargin: '-45% 0px -50% 0px' }).observe.bind(null);
+sections.forEach(s => {
+  new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      const link = linkFor(en.target.id);
+      if (link) link.classList.toggle('is-active', en.isIntersecting);
+    });
+  }, { rootMargin: '-45% 0px -50% 0px' }).observe(s);
+});
+
+/* ---------- Cursor personalizado (solo ratón) ---------- */
+if (FINE_POINTER) {
+  const dot = document.querySelector('.cursor-dot');
+  const ring = document.querySelector('.cursor-ring');
+  let rx = innerWidth / 2, ry = innerHeight / 2;    // posición "suavizada" del anillo
+  addEventListener('pointermove', e => {
+    dot.style.transform = `translate(${e.clientX - 3}px, ${e.clientY - 3}px)`;
+  }, { passive: true });
+  (function loop() {
+    // Lerp hacia el puntero: el anillo persigue al punto → sensación líquida
+    const mx = +ring.dataset.x || rx, my = +ring.dataset.y || ry;
+    rx += (mx - rx) * 0.18; ry += (my - ry) * 0.18;
+    ring.style.transform = `translate(${rx - 17}px, ${ry - 17}px)`;
+    requestAnimationFrame(loop);
+  })();
+  addEventListener('pointermove', e => { ring.dataset.x = e.clientX; ring.dataset.y = e.clientY; }, { passive: true });
+  // Estado "hover" sobre elementos interactivos
+  document.querySelectorAll('a, button, .card, [data-cursor]').forEach(el => {
+    el.addEventListener('pointerenter', () => ring.classList.add('is-hover'));
+    el.addEventListener('pointerleave', () => ring.classList.remove('is-hover'));
+  });
+}
+
+/* ================================================================
+   HÉROE 3D — three.js
+   Composición: vinilo giratorio (el disco = la música), anillo de
+   neón (la noche), 3 orbes de luz orbitando (los escenarios) y un
+   campo de partículas (el público). La cámara hace parallax suave
+   con el puntero; al salir del héroe, la escena se apaga para no
+   gastar GPU (IntersectionObserver + cancelación del rAF).
+   ================================================================ */
+async function initHeroScene() {
+  const canvas = document.getElementById('hero-gl');
+  try {
+    const THREE = await import('three');
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas, antialias: devicePixelRatio < 2,   // MSAA solo si no es pantalla retina
+      alpha: true, powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(clamp(devicePixelRatio, 1, 2));   // DPR tope 2: nitidez sin quemar GPU
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;      // luces más cinematográficas
+    renderer.toneMappingExposure = 1.15;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    camera.position.set(0, 0.4, 7.5);
+
+    const group = new THREE.Group();
+    scene.add(group);
+
+    /* Luces: clave magenta, relleno violeta, contraoro */
+    scene.add(new THREE.AmbientLight(0x8b5cf6, 0.35));
+    const keyLight  = new THREE.PointLight(0xff2e93, 60, 40); keyLight.position.set(5, 3, 5);
+    const fillLight = new THREE.PointLight(0x8b5cf6, 45, 40); fillLight.position.set(-6, -2, 4);
+    const rimLight  = new THREE.PointLight(0xf5c518, 35, 30); rimLight.position.set(0, 5, -6);
+    scene.add(keyLight, fillLight, rimLight);
+
+    /* Vinilo: disco negro con surcos reflejantes y etiqueta de oro */
+    const vinyl = new THREE.Group();
+    const disc = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.1, 2.1, 0.06, 96),
+      new THREE.MeshStandardMaterial({ color: 0x0b0a12, roughness: 0.25, metalness: 0.9 })
+    );
+    const grooves = new THREE.Mesh(
+      new THREE.TorusGeometry(1.55, 0.28, 16, 120),
+      new THREE.MeshStandardMaterial({ color: 0x191426, roughness: 0.15, metalness: 1 })
+    );
+    grooves.rotation.x = Math.PI / 2;
+    const label = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.72, 0.72, 0.075, 64),
+      new THREE.MeshStandardMaterial({ color: 0xf5c518, roughness: 0.4, metalness: 0.3, emissive: 0x553d00, emissiveIntensity: 0.6 })
+    );
+    vinyl.add(disc, grooves, label);
+    vinyl.rotation.set(0.9, 0, -0.25);                 // inclination "de portada"
+    group.add(vinyl);
+
+    /* Anillo de neón: el escenario */
+    const neon = new THREE.Mesh(
+      new THREE.TorusGeometry(3.1, 0.035, 16, 160),
+      new THREE.MeshBasicMaterial({ color: 0xff2e93 })
+    );
+    neon.rotation.copy(vinyl.rotation);
+    group.add(neon);
+
+    /* Orbes de luz que orbitan: las luces del directo */
+    const orbs = [0xff2e93, 0x8b5cf6, 0xf5c518].map((c, i) => {
+      const m = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 24, 24),
+        new THREE.MeshBasicMaterial({ color: c })
+      );
+      m.userData = { phase: (i / 3) * Math.PI * 2, radius: 3.1 };
+      group.add(m);
+      return m;
+    });
+
+    /* Campo de partículas: el público */
+    const N = innerWidth < 700 ? 700 : 1500;           // menos partículas en móvil
+    const pos = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      const r = 6 + Math.random() * 9;
+      const t = Math.random() * Math.PI * 2;
+      const p = Math.acos(2 * Math.random() - 1);
+      pos[i * 3]     = r * Math.sin(p) * Math.cos(t);
+      pos[i * 3 + 1] = r * Math.sin(p) * Math.sin(t) * 0.55;
+      pos[i * 3 + 2] = r * Math.cos(p);
+    }
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({
+      color: 0xcbb8ff, size: 0.035, transparent: true, opacity: 0.75,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    group.add(particles);
+
+    /* Resize con DPR correcto */
+    function resize() {
+      const { clientWidth: w, clientHeight: h } = canvas;
+      if (canvas.width === w * renderer.getPixelRatio() && canvas.height === h * renderer.getPixelRatio()) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    addEventListener('resize', resize, { passive: true });
+    resize();
+
+    /* Parallax de cámara con el puntero (lerp → movimiento líquido) */
+    const target = { x: 0, y: 0.4 };
+    if (FINE_POINTER) addEventListener('pointermove', e => {
+      target.x = (e.clientX / innerWidth - 0.5) * 1.6;
+      target.y = 0.4 - (e.clientY / innerHeight - 0.5) * 1.0;
+    }, { passive: true });
+
+    /* Bucle de render: se pausa si la pestaña está oculta o el héroe
+       no está en pantalla. Esto es lo que mantiene el scroll fluido.
+       El tiempo se basa en performance.now() (THREE.Clock está deprecado
+       desde three 0.18x); `pausedTotal` acumula las pausas para que al
+       reanudar la animación continúe donde estaba en lugar de saltar. */
+    let running = true, rafId = 0, pausedTotal = 0, pauseStart = 0;
+    const t0 = performance.now();
+
+    function pause() {
+      if (!running) return;
+      running = false;
+      pauseStart = performance.now();
+      cancelAnimationFrame(rafId);
+    }
+    function resume() {
+      if (running) return;
+      running = true;
+      pausedTotal += performance.now() - pauseStart;   // "congelamos" el tiempo transcurrido
+      frame();
+    }
+
+    function frame() {
+      if (!running) return;
+      rafId = requestAnimationFrame(frame);
+      const t = (performance.now() - t0 - pausedTotal) / 1000;
+
+      // Vinilo girando (la cara visible gira en Y local: rotamos el grupo del disco)
+      vinyl.rotation.y = t * 0.45;
+      neon.rotation.y  = -t * 0.2;
+      neon.material.color.setHSL((t * 0.03) % 1, 0.9, 0.6);   // el neón cambia de tono lentamente
+
+      // Órbita de los orbes con vaivén vertical
+      orbs.forEach(o => {
+        const a = t * 0.6 + o.userData.phase;
+        o.position.set(
+          Math.cos(a) * o.userData.radius,
+          Math.sin(a * 1.7) * 0.8,
+          Math.sin(a) * o.userData.radius * 0.55
+        );
+      });
+
+      particles.rotation.y = t * 0.02;
+
+      // Parallax suave de cámara
+      camera.position.x += (target.x - camera.position.x) * 0.04;
+      camera.position.y += (target.y - camera.position.y) * 0.04;
+      camera.lookAt(0, 0, 0);
+
+      renderer.render(scene, camera);
+    }
+
+    if (REDUCED) {
+      renderer.render(scene, camera);                  // un solo frame estático
+    } else {
+      frame();
+      new IntersectionObserver(([en]) => {
+        // Apaga el bucle cuando el héroe sale de pantalla
+        if (en.isIntersecting) resume(); else pause();
+      }, { threshold: 0 }).observe(canvas);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) pause();
+        else if (canvas.getBoundingClientRect().bottom > 0) resume();
+      });
+    }
+  } catch (err) {
+    // Sin WebGL el gradiente CSS del héroe se queda como fondo: degradación elegante
+    console.warn('[hero] WebGL no disponible:', err);
+  }
+}
+initHeroScene();
+
+/* ================================================================
+   GSAP — texto 3D del héroe + parallax de secciones
+   SplitText parte el título en letras; cada una rota desde
+   rotateX(-90deg) (como las letras de un escenario) hasta su sitio.
+   ================================================================ */
+if (window.gsap) {
+  gsap.registerPlugin(ScrollTrigger);
+  if (window.SplitText) gsap.registerPlugin(SplitText);
+
+  if (!REDUCED) {
+    const title = document.getElementById('hero-title');
+    let chars = null;
+    if (window.SplitText) {
+      const split = new SplitText(title, { type: 'chars', charsClass: 'char' });
+      chars = split.chars;
+    }
+    const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
+    if (chars) {
+      gsap.set(title, { perspective: 900 });
+      tl.from(chars, {
+        yPercent: 120, rotateX: -90, opacity: 0,
+        duration: 1.1, stagger: 0.045, transformOrigin: '50% 100%'
+      }, 0.15);
+    }
+    tl.from('#hero-tagline',  { y: 30, opacity: 0, duration: 0.9 }, '-=0.7')
+      .from('#hero-actions .btn', { y: 24, opacity: 0, duration: 0.7, stagger: 0.1 }, '-=0.6')
+      .from('.hero__scroll',   { opacity: 0, duration: 0.8 }, '-=0.4');
+
+    /* Parallax por capas: cada [data-speed] se desplaza según su
+       velocidad relativa al scroll (speed negativo = sube más rápido). */
+    gsap.utils.toArray('[data-speed]').forEach(el => {
+      const speed = parseFloat(el.dataset.speed);
+      gsap.to(el, {
+        yPercent: speed * 100,
+        ease: 'none',
+        scrollTrigger: { trigger: el.closest('section') || el, start: 'top bottom', end: 'bottom top', scrub: 0.6 }
+      });
+    });
+
+    // El título del héroe se desvanece y escala al salir (profundidad)
+    gsap.to('.hero__content', {
+      yPercent: -18, opacity: 0.15, ease: 'none',
+      scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom 25%', scrub: true }
+    });
+  }
+}
+
+/* ================================================================
+   MOTION (vanilla) — revelados al entrar en pantalla + contadores
+   inView lanza cuando el elemento aparece; animate hace el resto.
+   ================================================================ */
+const { animate, inView, stagger } = await import('motion');
+
+if (!REDUCED) {
+  // Revelado genérico: cualquier [data-reveal] sube y aparece
+  document.querySelectorAll('[data-reveal]').forEach(el => {
+    animate(el, { opacity: [0, 1], y: [40, 0] }, { duration: 0.8, easing: [0.16, 1, 0.3, 1] });
+  });
+  // Tarjetas de servicios y stats: entrada escalonada por grupo
+  ['.cards .card', '.stat-item'].forEach(sel => {
+    const items = document.querySelectorAll(sel);
+    if (!items.length) return;
+    inView(sel, () => {
+      animate(items, { opacity: [0, 1], y: [36, 0] }, { delay: stagger(0.09), duration: 0.7, easing: [0.16, 1, 0.3, 1] });
+    }, { margin: '0px 0px -15% 0px' });
+  });
+}
+
+/* Contadores: animan 0 → valor cuando entran en pantalla */
+document.querySelectorAll('[data-count]').forEach(el => {
+  const end = parseInt(el.dataset.count, 10);
+  const fmt = n => Math.round(n).toLocaleString('es-ES');
+  if (REDUCED) { el.textContent = fmt(end); return; }
+  inView(el, () => {
+    animate(0, end, { duration: 1.6, easing: [0.16, 1, 0.3, 1], onUpdate: v => el.textContent = fmt(v) });
+  }, { margin: '0px 0px -10% 0px' });
+});
+
+/* ================================================================
+   TARJETAS 3D DE SERVICIOS — inclinación con el puntero
+   rotateX/rotateY se calculan desde la posición del ratón dentro
+   de la tarjeta; al salir, CSS la devuelve con su transición.
+   ================================================================ */
+if (FINE_POINTER && !REDUCED) {
+  document.querySelectorAll('[data-tilt]').forEach(card => {
+    const MAX = 9;                                   // grados máximos de inclinación
+    card.addEventListener('pointermove', e => {
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;   // -0.5 … 0.5
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = `perspective(800px) rotateY(${px * MAX}deg) rotateX(${-py * MAX}deg) translateZ(6px)`;
+      // Coordenadas para el brillo interior (propiedad CSS --mx/--my)
+      card.style.setProperty('--mx', `${(px + 0.5) * 100}%`);
+      card.style.setProperty('--my', `${(py + 0.5) * 100}%`);
+    });
+    card.addEventListener('pointerleave', () => { card.style.transform = ''; });
+  });
+}
+
+/* ================================================================
+   ARTISTAS — carrusel coverflow con Swiper
+   ================================================================ */
+const ARTISTS = [
+  // Fotos reales en assets/artists/ (subidas desde Pictures/Web Charo).
+  // · `pos` = object-position: ajusta la vertical para la cara quede
+  //   bien dentro del recorte 3:4 (las fotos de banda son apaisadas).
+  // · Si la foto no carga, `onerror` cae en la carátula generada por art().
+  { name: 'Anora Kito',      genre: 'Indie pop',       tag: '', photo: 'assets/artists/anora-kito.png',      pos: '50% 38%' },
+  { name: 'Corazón Inverso', genre: 'Indie rock',      tag: '', photo: 'assets/artists/corazon-inverso.jpg', pos: '50% 32%' },
+  { name: 'Dany Mixtika',    genre: 'Pop-electrónica', tag: '', photo: 'assets/artists/dany-mixtika.jpg',    pos: '50% 30%' },
+  { name: 'Jesús Martí',     genre: 'Pop-indie',       tag: '', photo: 'assets/artists/jesus-marti.png',     pos: '50% 30%' },
+];
+
+document.getElementById('artists-track').innerHTML = ARTISTS.map((a, i) => {
+  const fallback = art(i + 1, 800, 1060);        // carátula generada si falta la foto
+  return `
+  <div class="swiper-slide artist-slide">
+    <article class="artist-card">
+      <img src="${a.photo || fallback}"
+           onerror="this.onerror=null;this.src='${fallback}'"
+           style="object-position:${a.pos || '50% 35%'}"
+           alt="Retrato promocional de ${a.name}" loading="lazy" />
+      ${a.tag ? `<span class="artist-card__badge">${a.tag}</span>` : ''}
+      <div class="artist-card__meta">
+        <h3>${a.name}</h3>
+        <p>${a.genre}</p>
+      </div>
+    </article>
+  </div>`;
+}).join('');
+
+const artistsSwiper = new Swiper('.artists-swiper', {
+  effect: 'coverflow',
+  grabCursor: true,
+  centeredSlides: true,
+  // slidesPerView 'auto' + ancho fijo de slide en CSS (50vw): es la config
+  // canónica de coverflow. El ancho de CSS manda (Swiper no impone inline), así
+  // las slides vecinas asoman en 3D. Con 50vw slidesPerViewDynamic resuelve a 2
+  // → el loop de 4 artistas gira limpio (check 4 < 2+2) SIN avisos de consola.
+  // (A 320px/40vw dynamic era 3, cabían demasiadas slides y Swiper avisaba/
+  // congelaba el loop por no tener slides "sobrantes" para rotar.)
+  slidesPerView: 'auto',
+  loop: true,
+  speed: REDUCED ? 0 : 700,
+  coverflowEffect: { rotate: 32, stretch: 0, depth: 220, modifier: 1, slideShadows: false },
+  keyboard: { enabled: true },                                   // ← accesibilidad: flechas del teclado
+  autoplay: REDUCED ? false : { delay: 3200, pauseOnMouseEnter: true, disableOnInteraction: false },
+  navigation: { prevEl: '#artists-prev', nextEl: '#artists-next' },
+  a11y: { prevSlideMessage: 'Artista anterior', nextSlideMessage: 'Artista siguiente' },
+});
+
+/* ================================================================
+   DISCOGRAFÍA — fichas de trabajos destacados
+   · Cada ficha: funda cuadrada (arte generado) con el vinilo CSS
+     asomando a la derecha; en hover el disco sale y gira.
+   · El hueco .release__media usa aspect-ratio 1.3/1 para que el
+     vinilo nunca desborde la caja en ningún tamaño.
+   · Cambia `src` por la URL real de Spotify/Bandcamp cuando quieras.
+   ================================================================ */
+const RELEASES = [
+  { cat: 'CHG-014', artist: 'Anora Kito',      title: 'Órbita interior',   year: '2025', roles: ['Management', 'Prensa'],        src: 'https://open.spotify.com/search/Anora%20Kito', photo: 'anora-kito.png', pdf: 'Press Kit Anora Kito 2026.pdf' },
+  { cat: 'CHG-011', artist: 'Corazón Inverso', title: 'Ruido Blanco',      year: '2024', roles: ['Booking', 'Gira'],             src: 'https://open.spotify.com/search/Corazon%20Inverso', photo: 'corazon-inverso.jpg', pdf: 'Corazón Inverso.pdf' },
+  { cat: 'CHG-018', artist: 'Dany Mixtika',    title: 'Neón tardío',       year: '2025', roles: ['Prensa', 'Social media'],      src: 'https://open.spotify.com/search/Dany%20Mixtika', photo: 'dany-mixtika.jpg', pdf: '' },
+  { cat: 'CHG-009', artist: 'Jesús Martí',     title: 'Sal en la herida',  year: '2024', roles: ['Management', 'Booking'],       src: 'https://open.spotify.com/search/Jesus%20Marti', photo: 'jesus-marti.png', pdf: '' },
+  { cat: 'CHG-021', artist: 'Anora Kito',      title: 'Terciopelo',        year: '2025', roles: ['Prensa', 'Gira'],              src: 'https://open.spotify.com/search/Anora%20Kito', photo: 'anora-kito.png', pdf: 'Press Kit Anora Kito 2026.pdf' },
+  { cat: 'CHG-016', artist: 'Corazón Inverso', title: 'Fiebre de sábado',  year: '2025', roles: ['Booking', 'Social media'],     src: 'https://open.spotify.com/search/Corazon%20Inverso', photo: 'corazon-inverso.jpg', pdf: '' },
+];
+
+document.getElementById('releases-track').innerHTML = RELEASES.map((r, i) => `
+  <article class="release">
+    <div class="release__media">
+      <div class="release__disc" aria-hidden="true"></div>
+      <div class="release__cover">
+        <img src="assets/artists/${r.photo}" alt="${r.title} de ${r.artist}" loading="lazy" onerror="this.onerror=null;this.style.opacity='0';this.style.transition='opacity .3s'" />
+      </div>
+      ${r.pdf ? `<div class="release__pdf-badge" title="Pres kit"><svg viewBox="0 0 24 24"><path d="M19 9h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2zm-3 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm-3 4a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg></div>` : ''}
+      <span class="release__cat">${r.cat}</span>
+      <a class="release__play" href="${r.src}" target="_blank" rel="noopener"
+         aria-label="Escuchar ${r.title} de ${r.artist} (se abre en una pestaña nueva)">
+        <span class="ring" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+      </a>
+    </div>
+    <div class="release__head">
+      <h3 class="release__artist">${r.artist}</h3>
+      <span class="release__year">${r.year}</span>
+    </div>
+    <p class="release__title">${r.title}</p>
+    <ul class="release__roles">${r.roles.map(role => `<li>${role}</li>`).join('')}</ul>
+    <a class="release__link" href="${r.src}" target="_blank" rel="noopener">
+      Escuchar
+      <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M5 12h12.2l-4.6-4.6L14 6l7 6-7 6-1.4-1.4 4.6-4.6H5z"/></svg>
+    </a>
+    ${r.pdf ? `<a class="release__pdf" href="assets/pres-kits/${r.pdf}" target="_blank" rel="noopener" aria-label="Ver pres kit de ${r.artist}">Pres kit</a>` : ''}
+  </article>`).join('');
+
+// Revelado escalonado de las fichas al entrar en pantalla (igual que servicios)
+if (!REDUCED) {
+  inView('.releases', () => {
+    animate('.release', { opacity: [0, 1], y: [36, 0] }, { delay: stagger(0.08), duration: 0.7, easing: [0.16, 1, 0.3, 1] });
+  }, { margin: '0px 0px -15% 0px' });
+}
+
+/* ================================================================
+   GALERÍA — slider creativo con slides de foto y vídeo
+   · Los vídeos usan data-src: solo se cargan cuando entran en
+     pantalla (o al abrirlos en el lightbox). Sustituye las rutas
+     `assets/…` por tus archivos reales; el póster SVG se mantiene
+     como fallback si el archivo aún no existe.
+   ================================================================ */
+const GALLERY = [
+  { type: 'photo', title: 'Sala Apolo — Anora Kito',        meta: 'Barcelona · 2025' },
+  { type: 'video', title: 'Sesión acústica — Jesús Martí',  meta: 'Estudio CHG', src: 'assets/videos/jesus-marti-acustica.mp4' },
+  { type: 'photo', title: 'Backstage — Corazón Inverso',    meta: 'Tour “Ruido Blanco”' },
+  { type: 'photo', title: 'Primera fila',                   meta: 'Madrid · 2025' },
+  { type: 'video', title: 'Aftermovie — Festival Surco',    meta: 'Valencia · 2025', src: 'assets/videos/aftermovie-surco.mp4' },
+  { type: 'photo', title: 'Cámara lenta',                   meta: 'Directo · Sevilla' },
+  { type: 'photo', title: 'Sesión de prensa',               meta: 'Estudio CHG' },
+];
+
+document.getElementById('gallery-track').innerHTML = GALLERY.map((g, i) => {
+  const poster = art(i + 20, 1280, 720);
+  const media = g.type === 'video'
+    ? `<img src="${poster}" alt="" loading="lazy" data-video-poster />
+       <button class="gallery-slide__play" type="button"
+               data-video-src="${g.src}" data-video-poster="${poster}"
+               aria-label="Reproducir vídeo: ${g.title}">
+         <span class="ring" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+       </button>`
+    : `<img src="${poster}" alt="${g.title}" loading="lazy" />`;
+  return `
+    <div class="swiper-slide gallery-slide">
+      <div class="gallery-slide__media" data-lbx="${g.type}" data-src="${g.type === 'video' ? g.src : poster}"
+           data-title="${g.title}" tabindex="0" role="button" aria-label="Ampliar: ${g.title}">
+        ${media}
+        <div class="gallery-slide__caption">
+          <h3>${g.title}</h3><span>${g.meta}</span>
+        </div>
+      </div>
+    </div>`;
+}).join('');
+
+const gallerySwiper = new Swiper('.gallery-swiper', {
+  effect: 'creative',
+  grabCursor: true,
+  loop: true,
+  speed: REDUCED ? 0 : 800,
+  // Efecto creativo: la slide sale girando en 3D y la nueva entra desde el otro lado
+  creativeEffect: {
+    prev: { translate: ['-120%', 0, -400], rotate: [0, 0, -6] },
+    next: { translate: ['120%', 0, -400],  rotate: [0, 0, 6] },
+  },
+  keyboard: { enabled: true },
+  autoplay: REDUCED ? false : { delay: 4500, pauseOnMouseEnter: true },
+  pagination: { el: '#gallery-pagination', clickable: true },
+  navigation: { prevEl: '#gallery-prev', nextEl: '#gallery-next' },
+  a11y: { prevSlideMessage: 'Slide anterior', nextSlideMessage: 'Slide siguiente' },
+});
+
+/* ---------- Reproducción de vídeos inline (lazy) ---------- */
+document.getElementById('gallery-track').addEventListener('click', e => {
+  const btn = e.target.closest('.gallery-slide__play');
+  if (!btn) return;
+  e.stopPropagation();                                  // no abrir el lightbox al dar a play
+  const media = btn.parentElement;
+  const poster = btn.dataset.videoPoster;
+  // <video> con src lazy: si el archivo no existe, se queda el póster
+  const video = document.createElement('video');
+  video.src = btn.dataset.videoSrc;
+  video.poster = poster;
+  video.controls = true; video.muted = true; video.loop = true;
+  video.playsInline = true; video.setAttribute('playsinline', '');
+  video.addEventListener('error', () => video.remove(), { once: true });  // fallback silencioso
+  btn.replaceWith(video);
+  video.play().catch(() => {});
+});
+
+/* ---------- Lightbox accesible ---------- */
+const lightbox = document.getElementById('lightbox');
+const lbFrame = document.getElementById('lightbox-frame');
+const lbClose = document.getElementById('lightbox-close');
+let lbOpener = null;
+
+function openLightbox({ type, src, title }, opener) {
+  lbOpener = opener;
+  lbFrame.innerHTML = type === 'video'
+    ? `<video src="${src}" controls autoplay muted loop playsinline style="width:100%"></video>`
+    : `<img src="${src}" alt="${title}" style="width:100%" />`;
+  lightbox.showModal();                                // foco + Esc automáticos
+}
+function closeLightbox() {
+  lbFrame.innerHTML = '';                              // corta la reproducción
+  lightbox.close();
+  lbOpener?.focus();                                   // devuelve el foco al origen
+}
+lbClose.addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+lightbox.addEventListener('close', () => { lbFrame.innerHTML = ''; });
+
+// Apertura por clic o teclado (Enter/Espacio en el div con role=button)
+const galleryTrack = document.getElementById('gallery-track');
+galleryTrack.addEventListener('click', e => {
+  const media = e.target.closest('[data-lbx]');
+  if (media && !e.target.closest('.gallery-slide__play')) {
+    openLightbox(media.dataset, media);
+  }
+});
+galleryTrack.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-lbx]')) {
+    e.preventDefault();
+    openLightbox(e.target.dataset, e.target);
+  }
+});
+
+/* ================================================================
+   ABOUT — imágenes de las capas (placeholders de marca)
+   ================================================================ */
+document.getElementById('about-img-1').src = art(50, 700, 900);
+document.getElementById('about-img-2').src = art(51, 700, 850);
+
+/* ================================================================
+   CONTACTO — fondo aurora con OGL
+   Shader de ruido simple teñido con la paleta de marca. Es un único
+   quad a pantalla completa: coste de GPU mínimo. Se pausa cuando la
+   sección no está visible.
+   ================================================================ */
+async function initAurora() {
+  const canvas = document.getElementById('contact-aurora');
+  // Capturamos el contenedor ANTES de reemplazar el canvas: después del
+  // replaceWith(), el canvas original queda suelto del DOM y su
+  // parentElement sería null (de ahí el error de getBoundingClientRect).
+  const host = canvas.parentElement;
+  try {
+    const { Renderer, Program, Mesh, Triangle } = await import('ogl');
+
+    const renderer = new Renderer({ dpr: Math.min(devicePixelRatio, 1.5), alpha: true });
+    const gl = renderer.gl;
+    canvas.replaceWith(gl.canvas);                     // OGL crea su propio canvas
+    gl.canvas.id = 'contact-aurora';
+    gl.canvas.setAttribute('aria-hidden', 'true');
+
+    const vertex = /* glsl */`
+      attribute vec2 position;
+      varying vec2 vUv;
+      void main() {
+        vUv = position * 0.5 + 0.5;
+        gl_Position = vec4(position, 0.0, 1.0);
+      }`;
+
+    // Ruido value-noise en 2 octavas + gradiente de marca + viñeta suave
+    const fragment = /* glsl */`
+      precision highp float;
+      varying vec2 vUv;
+      uniform float uTime;
+      uniform vec2 uRes;
+
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p){
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
+                   mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+      }
+
+      void main() {
+        vec2 uv = vUv;
+        float aspect = uRes.x / max(uRes.y, 1.0);
+        vec2 p = vec2(uv.x * aspect, uv.y) * 2.2;
+
+        // Dos capas de ruido deslizándose en direcciones opuestas = aurora
+        float n1 = noise(p + vec2(uTime * 0.05, uTime * 0.02));
+        float n2 = noise(p * 1.8 - vec2(uTime * 0.03, uTime * 0.045));
+        float waves = n1 * 0.65 + n2 * 0.35;
+
+        vec3 violet = vec3(0.545, 0.361, 0.965);
+        vec3 magenta = vec3(1.0, 0.180, 0.576);
+        vec3 gold = vec3(0.961, 0.773, 0.094);
+
+        vec3 col = mix(violet, magenta, smoothstep(0.25, 0.75, waves));
+        col = mix(col, gold, smoothstep(0.78, 0.98, waves) * 0.5);
+
+        // Máscara vertical + viñeta: el color se concentra abajo/centro
+        float mask = smoothstep(0.0, 0.55, uv.y) * (1.0 - smoothstep(0.6, 1.0, uv.y));
+        float vig = smoothstep(1.15, 0.35, distance(uv, vec2(0.5)));
+
+        gl_FragColor = vec4(col * mask * vig, (mask * vig) * 0.5);
+      }`;
+
+    const program = new Program(gl, {
+      vertex, fragment,
+      transparent: true, depthTest: false,
+      uniforms: {
+        uTime: { value: 0 },
+        uRes: { value: [gl.canvas.width, gl.canvas.height] },
+      },
+    });
+
+    const mesh = new Mesh(gl, { geometry: new Triangle(gl), program });
+
+    function resize() {
+      const r = host.getBoundingClientRect();
+      renderer.setSize(r.width, r.height);
+      program.uniforms.uRes.value = [gl.canvas.width, gl.canvas.height];
+    }
+    addEventListener('resize', resize, { passive: true });
+    resize();
+
+    let running = false, rafId = 0, pausedTotal = 0, pauseStart = 0;
+    const t0 = performance.now();
+    function frame(now) {
+      if (!running) return;
+      rafId = requestAnimationFrame(frame);
+      program.uniforms.uTime.value = (now - t0 - pausedTotal) / 1000;
+      renderer.render({ scene: mesh });
+    }
+    function pause() {
+      if (!running) return;
+      running = false; pauseStart = performance.now(); cancelAnimationFrame(rafId);
+    }
+    function resume() {
+      if (running) return;
+      running = true; pausedTotal += performance.now() - pauseStart;
+      frame(performance.now());
+    }
+    // Solo corre cuando la sección de contacto está a la vista
+    new IntersectionObserver(([en]) => {
+      if (en.isIntersecting && !REDUCED) resume(); else pause();
+    }, { threshold: 0.05 }).observe(document.getElementById('contacto'));
+
+    if (REDUCED) renderer.render({ scene: mesh });       // frame estático
+  } catch (err) {
+    console.warn('[aurora] WebGL no disponible:', err);
+  }
+}
+initAurora();
+
+/* ================================================================
+   FORMULARIO — validación nativa + estado animado
+   Sin backend: aquí es donde conectas tu endpoint (fetch a
+   Formspree, Pages Function, API propia…).
+   ================================================================ */
+const form = document.getElementById('contact-form');
+const status = document.getElementById('form-status');
+const submitBtn = document.getElementById('form-submit');
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  // Validación: usa la API nativa de Constraint Validation
+  if (!form.checkValidity()) {
+    status.textContent = 'Revisa los campos marcados antes de enviar.';
+    status.style.color = 'var(--magenta)';
+    form.reportValidity();                              // burbujas nativas del navegador
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Enviando…';
+  status.style.color = 'var(--muted)';
+  status.textContent = '';
+
+  // ↓↓↓ SUSTITUIR por el envío real ↓↓↓
+  // await fetch('https://formspree.io/f/TU_ID', { method:'POST', body:new FormData(form), headers:{Accept:'application/json'} });
+  await new Promise(r => setTimeout(r, 900));           // simulación de red
+
+  form.reset();
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Enviar mensaje';
+  status.style.color = 'var(--gold)';
+  status.textContent = '¡Mensaje enviado! Te respondemos en menos de 48 h.';
+
+  if (!REDUCED && window.gsap) {
+    gsap.fromTo(status, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.5, ease: 'expo.out' });
+  }
+});
+</script>
+</body>
+</html>
